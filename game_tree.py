@@ -1,121 +1,68 @@
-# required graphviz installed in python as well as in your system
-
-from dataclasses import dataclass, field
-from typing import List, Optional
 from graphviz import Digraph
-import uuid
-
-DIVISORS = [2, 3, 4, 5]
+import AI
 
 
-@dataclass
-class GameNode:
-    number: int
-    points: int
-    bank: int
-    player: int
-    depth: int = 0
-    move: Optional[int] = None
-    children: List["GameNode"] = field(default_factory=list)
-    terminal: bool = False
-    winner: Optional[int] = None
-    hef: Optional[int] = None
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+# ----------- Winner helpers (same logic as your game) -----------
 
-
-def hef(node: "GameNode"):
-    d = divisors_number(node.number)
-    d5 = divisor5_number(node.number)
-    d4 = divisor4_number(node.number)
-    b = node.bank
-    p = node.points
-
-    if node.depth % 2 == 0:
-        times_5_can_change = d5
+def final_score(state):
+    if state.points % 2 == 0:
+        return state.points + state.bank
     else:
-        times_5_can_change = max(0, d5 - 1)
-
-    times_4_can_change = d4
-    
-    return ((times_4_can_change + times_5_can_change + d + b + p) % 2 
-           + (d + b + p) % 2
-           + (times_5_can_change) % 2)
+        return state.points - state.bank
 
 
-def apply_move(number, points, bank, divisor):
-    new_number = number // divisor
-
-    if new_number % 2 == 1:
-        points += 1
-    else:
-        points -= 1
-
-    if new_number % 10 == 0 or new_number % 10 == 5:
-        bank += 1
-
-    return new_number, points, bank
+def get_winner(state):
+    score = final_score(state)
+    return 1 if score % 2 == 1 else 2
 
 
-def finalize_score(points, bank):
-    if points % 2 == 1:
-        points -= bank
-    else:
-        points += bank
-    return points
-
-
-def determine_winner(points):
-    return 1 if points % 2 == 1 else 2
-
-
-def generate_tree(number, points=0, bank=0, player=1, depth=0):
-    node = GameNode(number, points, bank, player, depth)
-
-    node.hef = hef(node)
-
-    valid_moves = [d for d in DIVISORS if number % d == 0]
-
-    if not valid_moves:
-        node.terminal = True
-        final_points = finalize_score(points, bank)
-        node.winner = determine_winner(final_points)
-        return node
-
-    next_player = 2 if player == 1 else 1
-
-    for d in valid_moves:
-        new_number, new_points, new_bank = apply_move(number, points, bank, d)
-        child = generate_tree(new_number, new_points, new_bank, next_player, depth + 1)
-        child.move = d
-        node.children.append(child)
-
-    return node
-
+# ----------- Graph building -----------
 
 def add_to_graph(graph, node):
+    s = node.state
+
     label = (
-        f"N={node.number}\n"
-        f"P={node.points}\n"
-        f"B={node.bank}\n"
-        f"Pl={node.player}\n"
+        f"N={s.number}\n"
+        f"P={s.points}\n"
+        f"B={s.bank}\n"
+        f"Pl={s.player}\n"
         f"H={node.hef}"
     )
 
+    # Terminal node styling
     if node.terminal:
-        color = "lightgreen" if node.winner == 1 else "lightblue"
-        graph.node(node.id, label=label + f"\nWinner: P{node.winner}",
-                   style="filled", fillcolor=color, shape="box")
+        # Ensure winner is set
+        if node.winner is None:
+            node.winner = get_winner(s)
+
+        if node.winner == 1:
+            color = "lightgreen"
+            winner_text = "Winner: P1"
+        else:
+            color = "lightblue"
+            winner_text = "Winner: P2"
+
+        graph.node(
+            node.id,
+            label=label + f"\n{winner_text}",
+            style="filled",
+            fillcolor=color,
+            shape="box"
+        )
     else:
         graph.node(node.id, label=label, shape="box")
 
+    # Edges
     for child in node.children:
         add_to_graph(graph, child)
         graph.edge(node.id, child.id, label=f"/{child.move}")
 
 
+# ----------- Visualization -----------
+
 def visualize_tree(root, filename="game_tree"):
     dot = Digraph(comment="Game Tree", format="png")
-    dot.attr(rankdir="TB", size="100,100")
+    dot.attr(rankdir="TB", size="100000,10000")
 
     add_to_graph(dot, root)
 
@@ -123,40 +70,58 @@ def visualize_tree(root, filename="game_tree"):
     print(f"Tree saved to {filename}.png")
 
 
-def divisors_number(n):
-    count = 0
-    for d in [2, 3, 5]:
-        while n % d == 0:
-            n //= d
-            count += 1
-    return count
+# ----------- Build tree using AI.py -----------
 
+def build_tree_raw_hef(initial_number, depth=10):
+    state = AI.GameState()
+    state.number = initial_number
+    state.points = 0
+    state.bank = 0
+    state.player = 1
 
-def divisor5_number(n):
-    count = 0
-    while n % 5 == 0:
-        n //= 5
-        count += 1
-    return count
+    root = AI.generate_tree(state, depth)
 
+    def assign_hef(node):
+        node.hef = node.heuristic()
+        for child in node.children:
+            assign_hef(child)
 
-def divisor4_number(n):
-    count = 0
-    while n % 4 == 0:
-        n //= 4
-        count += 1
-    return count
+    assign_hef(root)
 
+    return root
+def build_tree_alpha_beta(initial_number, depth=10):
+    state = AI.GameState()
+    state.number = initial_number
+    state.points = 0
+    state.bank = 0
+    state.player = 1
+
+    root = AI.generate_tree(state, depth)
+
+    AI.alphabeta(root, float("-inf"), float("inf"), True)
+
+    return root
+
+def build_tree_minimax(initial_number, depth=10):
+    state = AI.GameState()
+    state.number = initial_number
+    state.points = 0
+    state.bank = 0
+    state.player = 1
+
+    root = AI.generate_tree(state, depth)
+
+    AI.minimax(root, True)
+
+    return root
+
+# ----------- Main -----------
 
 if __name__ == "__main__":
-    start_number = 500
+    start_number = 120
 
-    tree = generate_tree(start_number)
+    tree = build_tree_minimax(start_number)
 
     visualize_tree(tree, "game_tree")
-
-    print("Divisors:", divisors_number(start_number))
-    print("Divisor 5:", divisor5_number(start_number))
-    print("Divisor 4:", divisor4_number(start_number))
 
     input()
