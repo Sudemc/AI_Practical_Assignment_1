@@ -1,12 +1,13 @@
-from dataclasses import dataclass, field
-from typing import List, Optional
 import uuid
 import copy
 import random
+from enum import Enum
 
 
 DIVISORS = [2, 3, 4, 5]
-
+class Player(Enum):
+    MAXIMIZER = 1
+    MINIMIZER = 2
 
 class GameNode:
     def __init__ (self, _state: GameState):
@@ -15,7 +16,7 @@ class GameNode:
         self.children = []
         self.terminal = False
         self.winner = None
-        self.hef = hef(self)
+        self.hef = None
         self.id = str(uuid.uuid4())
     
     def heuristic(self):
@@ -26,7 +27,8 @@ class GameState:
         self.number = 0
         self.points = 0
         self.bank = 0
-        self.player = 1
+        self.player = Player.MAXIMIZER
+        self.starting_player = Player.MAXIMIZER
 
 def apply_move(state: GameState, divisor):
     new_state = copy.deepcopy(state)
@@ -38,10 +40,10 @@ def apply_move(state: GameState, divisor):
 
     if new_state.number % 10 == 0 or new_state.number % 10 == 5:
         new_state.bank += 1
-    if state.player == 1:
-        new_state.player = 2
+    if state.player == Player.MAXIMIZER:
+        new_state.player = Player.MINIMIZER
     else:
-        new_state.player = 1
+        new_state.player = Player.MAXIMIZER
     return new_state
 
 
@@ -83,6 +85,7 @@ def minimax(node: GameNode, maximizing: bool):
     
 def alphabeta(node: GameNode, alpha, beta, maximizing: bool):
     if node.terminal or not node.children:
+        print("Evaluated terminal node with heuristic measure: ", node.heuristic())
         return node.heuristic()
 
     if maximizing:
@@ -105,29 +108,28 @@ def alphabeta(node: GameNode, alpha, beta, maximizing: bool):
         return value
     
 def next_computer_move(state: GameState, depth: int, alg: str = "alphabeta"):
+    print(state.player)
     root = generate_tree(state, depth)
-    if state.player == 1:
-        maximizing = True
-    else:
-        maximizing = False
 
     if alg == "alphabeta":
-        alphabeta(root, float("-inf"), float("inf"), maximizing)
+        alphabeta(root, float("-inf"), float("inf"), True)
     elif alg == "minimax":
-        minimax(root, maximizing)
+        minimax(root, True)
     else:
         return
-    min_hef = float("+inf")
+    max_hef = float("-inf")
     best_moves = []
-
-    for child in root.children:
-        if child.hef < min_hef:
-            min_hef = child.hef
-            best_moves = [child.move]
-        elif child.hef == min_hef:
-            best_moves.append(child.move)
     
-    move = random.choice(best_moves)
+    for child in root.children:
+        if child.hef > max_hef:
+            max_hef = child.hef
+            best_moves = [child.move]
+        elif child.hef == max_hef:
+            best_moves.append(child.move)    
+    if(alg == "minimax"):
+        move = random.choice(best_moves)
+    else:
+        move = best_moves[0]
 
     return move
 
@@ -146,17 +148,23 @@ def hef(node: GameNode):
     divisor5 = divisor5_number(node.state.number)
     bank = node.state.bank
     points = node.state.points
-    if node.state.player == 1:
-        influence_5 = divisor5
-    else:
-        influence_5 = max(0, divisor5 - 1)
+    parity_shift = 0
     result = 0
+
+    if node.state.starting_player == Player.MINIMIZER:
+        parity_shift = 1
+
+    if node.state.player == Player.MAXIMIZER:
+        min_influence5 = divisor5
+    else:
+        min_influence5 = max(0, divisor5 - 1)
     if divisor5 == divisors:
-        influence_5 = max(0, divisor5 - 1)
-    result += ((influence_5 + divisors + bank + points) % 2) * 2
-    result += ((divisors + bank + points) % 2)
-    result += ((influence_5 + divisors_low_to_high + bank + points) % 2)
-    result += ((divisors_low_to_high + bank + points) % 2) * 0.5
+        min_influence5 = max(0, divisor5 - 1)
+
+    result += ((min_influence5 + divisors + bank + points + parity_shift) % 2) * 2
+    result += (divisors + bank + points + parity_shift) % 2
+    result += (min_influence5 + divisors_low_to_high + bank + points + parity_shift) % 2
+    result += ((divisors_low_to_high + bank + points + parity_shift) % 2) * 0.5
 
     return result
 
