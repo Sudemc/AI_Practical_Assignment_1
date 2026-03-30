@@ -1,80 +1,52 @@
-from dataclasses import dataclass, field
-from typing import List, Optional
 from graphviz import Digraph
-import uuid
+import AI
+from AI import Player
 
-DIVISORS = [2, 3, 4, 5]
+STARTING_PLAYER = Player.MINIMIZER
 
-
-@dataclass
-class GameNode:
-    number: int
-    points: int
-    bank: int
-    player: int
-    move: Optional[int] = None
-    children: List["GameNode"] = field(default_factory=list)
-    terminal: bool = False
-    winner: Optional[int] = None
-    id: str = field(default_factory=lambda: str(uuid.uuid4())) #generates unique ids, needed for visualization lib
-
-
-def apply_move(number, points, bank, divisor):
-    new_number = number // divisor
-
-    if new_number % 2 == 1:
-        points += 1
+def final_score(state):
+    if state.points % 2 == 0:
+        return state.points + state.bank
     else:
-        points -= 1
-
-    if new_number % 10 == 0 or new_number % 10 == 5:
-        bank += 1
-
-    return new_number, points, bank
+        return state.points - state.bank
 
 
-def finalize_score(points, bank):
-    if points % 2 == 1:
-        points -= bank
+def get_winner(state):
+    score = final_score(state)
+    if score % 2 == 1:
+        return STARTING_PLAYER
     else:
-        points += bank
-    return points
-
-
-def determine_winner(points):
-    return 1 if points % 2 == 1 else 2
-
-
-def generate_tree(number, points=0, bank=0, player=1):
-    node = GameNode(number, points, bank, player)
-
-    valid_moves = [d for d in DIVISORS if number % d == 0]
-
-    if not valid_moves:
-        node.terminal = True
-        final_points = finalize_score(points, bank)
-        node.winner = determine_winner(final_points)
-        return node
-
-    next_player = 2 if player == 1 else 1
-
-    for d in valid_moves:
-        new_number, new_points, new_bank = apply_move(number, points, bank, d)
-        child = generate_tree(new_number, new_points, new_bank, next_player)
-        child.move = d
-        node.children.append(child)
-
-    return node
-
-
+        return Player.MINIMIZER if STARTING_PLAYER == Player.MAXIMIZER else Player.MAXIMIZER
 
 def add_to_graph(graph, node):
-    label = f"N={node.number}\nP={node.points}\nB={node.bank}\nPl={node.player}"
+    s = node.state
+
+    label = (
+        f"N={s.number}\n"
+        f"P={s.points}\n"
+        f"B={s.bank}\n"
+        f"Pl={s.player}\n"
+        f"H={node.hef}"
+    )
 
     if node.terminal:
-        color = "lightgreen" if node.winner == 1 else "lightblue"
-        graph.node(node.id, label=label + f"\nWinner: P{node.winner}",
-                   style="filled", fillcolor=color, shape="box")
+        if node.winner is None:
+            node.winner = get_winner(s)
+
+        if node.winner == Player.MAXIMIZER:
+            color = "lightgreen"
+            winner_text = "Winner: maximizer"
+        else:
+            color = "lightblue"
+            winner_text = "Winner: minimizer"
+
+        graph.node(
+            node.id,
+            label=label + f"\n{winner_text}",
+            style="filled",
+            fillcolor=color,
+            shape="box"
+        )
     else:
         graph.node(node.id, label=label, shape="box")
 
@@ -83,19 +55,70 @@ def add_to_graph(graph, node):
         graph.edge(node.id, child.id, label=f"/{child.move}")
 
 
+# Visualization
+
 def visualize_tree(root, filename="game_tree"):
     dot = Digraph(comment="Game Tree", format="png")
-    dot.attr(rankdir="TB", size="100,100")
+    dot.attr(rankdir="TB", size="35000,35000")
 
     add_to_graph(dot, root)
 
     dot.render(filename, view=True)
     print(f"Tree saved to {filename}.png")
 
+def build_tree_raw_hef(initial_number, depth=10):
+    state = AI.GameState()
+    state.number = initial_number
+    state.points = 0
+    state.bank = 0
+    state.player = STARTING_PLAYER
+    state.starting_player = STARTING_PLAYER
 
+    root = AI.generate_tree(state, depth)
+
+    def assign_hef(node):
+        node.hef = node.heuristic()
+        for child in node.children:
+            assign_hef(child)
+
+    assign_hef(root)
+
+    return root
+def build_tree_alpha_beta(initial_number, depth=10):
+    state = AI.GameState()
+    state.number = initial_number
+    state.points = 0
+    state.bank = 0
+    state.player = STARTING_PLAYER
+    state.starting_player = STARTING_PLAYER
+    maximizing = True if STARTING_PLAYER == Player.MAXIMIZER else False
+
+    root = AI.generate_tree(state, depth)
+
+    AI.alphabeta(root, float("-inf"), float("inf"), maximizing)
+
+    return root
+
+def build_tree_minimax(initial_number, depth=10):
+    state = AI.GameState()
+    state.number = initial_number
+    state.points = 0
+    state.bank = 0
+    state.player = STARTING_PLAYER
+    state.starting_player = STARTING_PLAYER
+    maximizing = True if STARTING_PLAYER == Player.MAXIMIZER else False
+
+    root = AI.generate_tree(state, depth)
+
+    AI.minimax(root, maximizing)
+
+    return root
 
 if __name__ == "__main__":
-    start_number = 120
-    tree = generate_tree(start_number)
+    start_number = 200
+
+    tree = build_tree_raw_hef(start_number)
 
     visualize_tree(tree, "game_tree")
+
+    input()
