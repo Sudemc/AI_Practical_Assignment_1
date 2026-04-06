@@ -6,7 +6,7 @@ import random
 from AI import Player, GameState, next_computer_move
 
 
-DEPTH = 10
+DEPTH = 8
 
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
@@ -22,8 +22,6 @@ class DivideGame:
         self.chosen_number = 0
 
         # GUI fields
-        self.start_numbers_frame = None
-        self.starting_numbers = [random.randint(30000, 50000) for n in range(5)]
         self.start_entry = None
         self.info_label = None
         self.info_turn_label = None
@@ -33,13 +31,12 @@ class DivideGame:
         self.buttons = []
 
         # Interface startup
-        self.start_numbers_frame = tk.Frame(root)
-        self.start_numbers_frame.pack()
-        for i in range(5):
-            btn = tk.Button(self.start_numbers_frame, 
-                            text=f"{self.starting_numbers[i]}",
-                            command=lambda n=self.starting_numbers[i]: self.choose_starting_number(n))
-            btn.pack(side=tk.LEFT, padx=5)
+        self.start_entry = tk.Entry(
+        root,
+        validate='key',
+        validatecommand=(root.register(lambda c: c.isdigit() or c == ""), '%S')
+        )
+        self.start_entry.pack(pady=10)
 
         self.start_buttons_frame = tk.Frame(root)
         self.start_buttons_frame.pack(pady=20)
@@ -51,8 +48,8 @@ class DivideGame:
                                                text="Computer start", 
                                                command=lambda: self.start_game(Player.MAXIMIZER))
         self.computer_start_button.pack(side=tk.LEFT, padx=10)
-        self.player_start_button.config(state = "disabled")
-        self.computer_start_button.config(state = "disabled")
+        self.player_start_button.config(state = "normal")
+        self.computer_start_button.config(state = "normal")
 
         self.info_label = tk.Label(root, text="")
         self.info_label.pack()
@@ -91,14 +88,21 @@ class DivideGame:
         for btn in self.buttons:
             btn.config(state="disabled")
 
-    def choose_starting_number(self, starting_number: int):
-        for btn in self.start_numbers_frame.winfo_children():
-                btn.config(state = "disabled")
-        for btn in self.start_buttons_frame.winfo_children():
-            btn.config(state = "normal")
-        self.state.number = starting_number
-        
     def start_game(self, starting_player: Player):
+        value = self.start_entry.get()
+        if not value:
+            messagebox.showerror("Error", "Please enter a number.")
+            return
+        try:
+            number = int(value)
+            if number <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid positive integer.")
+            return
+
+        self.chosen_number = number
+        self.state.number = number
         self.state.points = 0
         self.state.bank = 0
         self.state.starting_player = starting_player
@@ -134,6 +138,7 @@ class DivideGame:
         )
         if all(self.state.number % d != 0 for d in [2,3,4,5]):
             self.end_game()
+            return
 
         # Disable impossible moves
         if self.state.player == Player.MINIMIZER:
@@ -148,8 +153,8 @@ class DivideGame:
         elif self.state.player == Player.MAXIMIZER:
             for btn in self.buttons:
                 btn.config(state = "disabled")
-            self.minimax_move_btn.config(state = "normal")
-            self.alphabeta_move_btn.config(state= "normal")
+            for btn in self.ai_buttons_frame.winfo_children():
+                btn.configure(state = "normal")
 
     def make_move(self, divisor):
         self.state.number = self.state.number // divisor
@@ -195,12 +200,9 @@ class DivideGame:
             b.config(state="disabled")
         for b in self.ai_buttons_frame.winfo_children():
             b.configure(state = "disabled")
-
-        self.starting_numbers = [random.randint(30000, 50000) for n in range(5)]
-        for i, btn in enumerate(self.start_numbers_frame.winfo_children()):
-            btn.configure(text=str(self.starting_numbers[i]),
-                          state = "normal",
-                          command=lambda n=self.starting_numbers[i]: self.choose_starting_number(n))
+            
+        for b in self.start_buttons_frame.winfo_children():
+            b.config(state = "normal")
 
 
 root = tk.Tk()
