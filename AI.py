@@ -20,7 +20,8 @@ class GameNode:
         self.id = str(uuid.uuid4())
     
     def heuristic(self):
-        return hef(self)
+        self.hef = hef(self)
+        return self.hef
     
 class GameState:
     def __init__(self):
@@ -85,7 +86,6 @@ def minimax(node: GameNode, maximizing: bool):
     
 def alphabeta(node: GameNode, alpha, beta, maximizing: bool):
     if node.terminal or not node.children:
-        print("Evaluated terminal node with heuristic measure: ", node.heuristic())
         return node.heuristic()
 
     if maximizing:
@@ -108,7 +108,6 @@ def alphabeta(node: GameNode, alpha, beta, maximizing: bool):
         return value
     
 def next_computer_move(state: GameState, depth: int, alg: str = "alphabeta"):
-    print(state.player)
     root = generate_tree(state, depth)
 
     if alg == "alphabeta":

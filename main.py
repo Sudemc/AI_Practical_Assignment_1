@@ -5,17 +5,20 @@ import time
 import random
 from AI import Player, GameState, next_computer_move
 
+
+DEPTH = 10
+
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
 except:
-    pass    
+    pass
 class DivideGame:
     def __init__(self, root):
         self.root = root
         self.root.title("Division Game")
 
         self.state = GameState()
-        self.depth = 10
+        self.depth = DEPTH
         self.chosen_number = 0
 
         # GUI fields
