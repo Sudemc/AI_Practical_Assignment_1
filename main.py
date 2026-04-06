@@ -6,7 +6,7 @@ import random
 from AI import Player, GameState, next_computer_move
 
 
-DEPTH = 10
+DEPTH = 8
 
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
@@ -134,6 +134,7 @@ class DivideGame:
         )
         if all(self.state.number % d != 0 for d in [2,3,4,5]):
             self.end_game()
+            return
 
         # Disable impossible moves
         if self.state.player == Player.MINIMIZER:
