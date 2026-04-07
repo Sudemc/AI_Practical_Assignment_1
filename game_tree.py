@@ -74,7 +74,7 @@ def build_tree_raw_hef(initial_number, depth=10):
     state.player = STARTING_PLAYER
     state.starting_player = STARTING_PLAYER
 
-    root = AI.generate_tree(state, depth)
+    root, _ = AI.generate_tree(state, depth)
 
     def assign_hef(node):
         node.hef = node.heuristic()
@@ -93,7 +93,7 @@ def build_tree_alpha_beta(initial_number, depth=10):
     state.starting_player = STARTING_PLAYER
     maximizing = True if STARTING_PLAYER == Player.MAXIMIZER else False
 
-    root = AI.generate_tree(state, depth)
+    root, _ = AI.generate_tree(state, depth)
 
     AI.alphabeta(root, float("-inf"), float("inf"), maximizing)
 
@@ -108,7 +108,7 @@ def build_tree_minimax(initial_number, depth=10):
     state.starting_player = STARTING_PLAYER
     maximizing = True if STARTING_PLAYER == Player.MAXIMIZER else False
 
-    root = AI.generate_tree(state, depth)
+    root, _ = AI.generate_tree(state, depth)
 
     AI.minimax(root, maximizing)
 
