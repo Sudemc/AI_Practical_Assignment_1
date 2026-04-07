@@ -173,7 +173,7 @@ class DivideGame:
         start = time.perf_counter()
         div = next_computer_move(self.state, self.depth, alg)
         end = time.perf_counter()
-        print(f"Computer move took {end - start:.6f} seconds. {alg} algorithm was used.")
+        print(f"Computer move took {end - start:.6f} seconds. {alg} algorithm was used.\n")
         self.make_move(div)
         
     def end_game(self):
