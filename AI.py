@@ -47,30 +47,29 @@ def apply_move(state: GameState, divisor):
         new_state.player = Player.MAXIMIZER
     return new_state
 
-
-def generate_tree(state: GameState, remaining_depth):
+def generate_tree(state: GameState, remaining_depth, node_number = 0):
     node = GameNode(state)
+    node_number += 1
 
     valid_moves = [d for d in DIVISORS if state.number % d == 0]
 
     if not valid_moves:
         node.terminal = True
-        return node
+        return node, node_number
     
     if remaining_depth == 0:
-        return node
+        return node, node_number
     
     for d in valid_moves:
         new_state = apply_move(state, d)
-        child = generate_tree(new_state, remaining_depth-1)
+        child, node_number = generate_tree(new_state, remaining_depth-1, node_number)
         child.move = d
         node.children.append(child)
-    return node
+    return node, node_number
 
 def minimax(node: GameNode, maximizing: bool):
     if node.terminal or not node.children:
         return node.heuristic()
-
     if maximizing:
         value = float("-inf")
         for child in node.children:
@@ -84,38 +83,45 @@ def minimax(node: GameNode, maximizing: bool):
         node.hef = value
         return value
     
-def alphabeta(node: GameNode, alpha, beta, maximizing: bool):
+def alphabeta(node: GameNode, alpha, beta, maximizing: bool, value_num = 0):
+    value_num += 1
     if node.terminal or not node.children:
-        return node.heuristic()
+        return node.heuristic(), value_num
 
     if maximizing:
         value = float("-inf")
         for child in node.children:
-            value = max(value, alphabeta(child, alpha, beta, False))
+            child_value, value_num = alphabeta(child, alpha, beta, False, value_num)
+            value = max(value, child_value)
             alpha = max(alpha, value)
             if beta <= alpha:
                 break  # prune
         node.hef = value
-        return value
+        return value, value_num
     else:
         value = float("inf")
         for child in node.children:
-            value = min(value, alphabeta(child, alpha, beta, True))
+            child_value, value_num = alphabeta(child, alpha, beta, True, value_num)
+            value = min(value, child_value)
             beta = min(beta, value)
             if beta <= alpha:
                 break  # prune
         node.hef = value
-        return value
-    
+        return value, value_num
+
 def next_computer_move(state: GameState, depth: int, alg: str = "alphabeta"):
-    root = generate_tree(state, depth)
+    root, node_number = generate_tree(state, depth)
+    evaluated_nodes = 0
 
     if alg == "alphabeta":
-        alphabeta(root, float("-inf"), float("inf"), True)
+        _, evaluated_nodes = alphabeta(root, float("-inf"), float("inf"), True)
     elif alg == "minimax":
         minimax(root, True)
+        evaluated_nodes = node_number
     else:
         return
+    print(f"Game tree generated with {node_number} nodes")
+    print(f"Evaluated {evaluated_nodes} nodes from the tree")
     max_hef = float("-inf")
     best_moves = []
     
