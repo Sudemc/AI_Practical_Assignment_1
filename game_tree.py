@@ -115,7 +115,7 @@ def build_tree_minimax(initial_number, depth=10):
     return root
 
 if __name__ == "__main__":
-    start_number = 200
+    start_number = 400
 
     tree = build_tree_raw_hef(start_number)
 

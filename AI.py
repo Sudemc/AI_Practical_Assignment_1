@@ -162,9 +162,10 @@ def hef(node: GameNode):
     min_influence5 = max(0, divisor5 - 1)
 
     result += ((min_influence5 + divisors + bank + points + parity_shift) % 2) * 2
-    result += (min_influence5 + divisors_low_to_high + bank + points + parity_shift) % 2 * 0.5
+    result += (min_influence5 + divisors_low_to_high + bank + points + parity_shift) % 2
     result += (divisors + bank + points + parity_shift) % 2 *0.25
     result += ((divisors_low_to_high + bank + points + parity_shift) % 2) * 0.25
+    result += ((bank + points + parity_shift) % 2) * 0.25
 
     return result
 
