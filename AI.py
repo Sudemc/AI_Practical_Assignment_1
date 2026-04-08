@@ -159,6 +159,11 @@ def hef(node: GameNode):
     if node.state.starting_player == Player.MINIMIZER:
         parity_shift = 1
 
+    if node.terminal:
+        if (bank + points + parity_shift) % 2 == 1:
+            result = 10
+        return result
+    
     min_influence5 = max(0, divisor5 - 1)
 
     result += ((min_influence5 + divisors + bank + points + parity_shift) % 2) * 2
